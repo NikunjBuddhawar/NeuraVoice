@@ -1,0 +1,51 @@
+# === Python Backend ===
+backend/__pycache__/
+backend/*.pyc
+
+
+# === Virtual Environment ===
+venv
+
+# === .env ===
+.env
+
+# === Node / React Frontend ===
+frontend/node_modules/
+frontend/.env
+frontend/.DS_Store
+frontend/build/
+frontend/dist/
+
+# === General ===
+.env
+*.log
+*.pyc
+*.pyo
+*.sqlite3
+*.db
+.DS_Store
+*.swp
+
+# === VSCode & Editor Configs ===
+.vscode/
+.idea/
+
+# === OS-generated ===
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# === Test coverage / reports ===
+coverage/
+*.cover
+*.py,cover
+htmlcov/
+.cache/
+
+# === Dependency Lockfiles (optional, if auto-generated) ===
+# Uncomment if you want to keep lockfiles out of git
+# package-lock.json
+# Pipfile.lock
+
+# === Ignore compiled frontend ===
+frontend/build/
