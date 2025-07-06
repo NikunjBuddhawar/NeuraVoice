@@ -81,6 +81,29 @@ Built with modularity in mind, this can be the base for agentic AI systems.
 └── venv/                     # Virtual env (ignored)
 
 ```
+---
+
+## 🧠 Agentic Features
+
+NeuraVoice goes beyond simple chat with built-in **real-world utility** features:
+
+| Feature          | Description                                                             |
+|------------------|-------------------------------------------------------------------------|
+| 📧 Send Emails    | Compose and send emails via voice or text commands                      |
+| 📅 Schedule Events | Create calendar events with natural prompts (e.g., “Book a meeting...”)  |
+
+---
+
+## 🧠 Memory + Context (ChromaDB)
+
+Using **ChromaDB**, NeuraVoice enables **persistent memory** for long-term contextual intelligence:
+
+| Feature              | Description                                                                |
+|----------------------|----------------------------------------------------------------------------|
+| 🧠 Chat Memory         | Access previous conversations and continue them seamlessly                |
+| 🗂️ Persistent Context | Store and retrieve important session data across interactions             |
+
+---
 
 ## 🛠️ Setup Instructions
 
@@ -127,17 +150,17 @@ cd frontend
 npm install
 npm start
 ```
-## 🔄 Workflow Diagram
+---
+## 🔮 Future Enhancements
 
-```mermaid
-graph TD
-    A[User Speaks or Types] --> B[Frontend (React)]
-    B --> C[WebSocket /ws/audio]
-    C --> D[FastAPI Backend]
-    D -->|Audio| E[Whisper Transcription]
-    D -->|Text| F[Groq LLM]
-    E --> F
-    F -->|Response| G[ElevenLabs TTS or Text]
-    G --> H[Send Response Back via WebSocket]
-    H --> I[Frontend Renders in Chat]
-```
+Planned upgrades to make NeuraVoice more powerful, inclusive, and user-friendly:
+
+| Feature                 | Description                                                                |
+|-------------------------|----------------------------------------------------------------------------|
+| 🔐 Auth Page            | Add user login/signup for session-specific personalization                 |
+| 🌐 Multi-language Support | Converse in multiple global languages                                      |
+| ✉️ Mail Summarization   | Automatically read and summarize user emails using LLMs                    |
+| 🗣️ Custom Voice Styles  | Configure personality/voice tone with ElevenLabs' style presets             |
+| 📊 Usage Dashboard      | Track interaction history, usage stats, and system performance             |
+
+---

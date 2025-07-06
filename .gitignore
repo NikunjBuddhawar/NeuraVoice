@@ -1,51 +1,58 @@
-# === Python Backend ===
+# === Backend ===
 backend/__pycache__/
 backend/*.pyc
+backend/*.pyo
+backend/*.pyd
+backend/*.so
+backend/.env
+backend/credentials.json
+backend/token.json
 
-
-# === Virtual Environment ===
-venv
-
-# === .env ===
-.env
-
-# === Node / React Frontend ===
+# === Frontend ===
 frontend/node_modules/
-frontend/.env
-frontend/.DS_Store
 frontend/build/
 frontend/dist/
+frontend/.env
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
 
-# === General ===
-.env
-*.log
+# === General Python ===
 *.pyc
 *.pyo
-*.sqlite3
-*.db
-.DS_Store
-*.swp
+*.pyd
+__pycache__/
 
-# === VSCode & Editor Configs ===
-.vscode/
-.idea/
+# === Virtual Environment ===
+venv/
+.env/
 
-# === OS-generated ===
-Thumbs.db
-ehthumbs.db
-desktop.ini
-
-# === Test coverage / reports ===
+# === Logs and Reports ===
+*.log
+*.out
+*.err
+*.pid
 coverage/
-*.cover
-*.py,cover
-htmlcov/
-.cache/
+*.coverage
+*.lcov
+*.tgz
 
-# === Dependency Lockfiles (optional, if auto-generated) ===
-# Uncomment if you want to keep lockfiles out of git
-# package-lock.json
-# Pipfile.lock
+# === Editor Config ===
+.vscode/
+*.code-workspace
 
-# === Ignore compiled frontend ===
-frontend/build/
+# === System Files ===
+.DS_Store
+Thumbs.db
+
+# === Test Artifacts ===
+*.pytest_cache/
+.pytest_cache/
+tests/__pycache__/
+setupTests.js
+
+# === Lock Files (optional based on team conventions) ===
+package-lock.json
+yarn.lock
+pnpm-lock.yaml

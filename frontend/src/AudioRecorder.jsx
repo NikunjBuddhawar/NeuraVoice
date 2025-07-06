@@ -1,154 +1,162 @@
-// AudioRecorder.jsx
 import React, { useState, useRef, useEffect } from "react";
 import "./AudioRecorder.css";
 
+// Main Component
 export default function AudioRecorder() {
-  // State hooks to manage recording, chat messages, input text, and AI reply mode
-  const [recording, setRecording] = useState(false);
-  const [chat, setChat] = useState([]); // Stores messages: { sender: 'user' | 'ai', text?, audioUrl? }
-  const [inputText, setInputText] = useState("");
-  const [aiResponseMode, setAiResponseMode] = useState("text"); // 'text' or 'audio'
+  // UI State
+  const [recording, setRecording] = useState(false); // Tracks if user is recording audio
+  const [chat, setChat] = useState([]); // Holds all chat messages (text or audio)
+  const [inputText, setInputText] = useState(""); // Text input field value
+  const [aiResponseMode, setAiResponseMode] = useState("text"); // "text" or "audio" response from AI
 
-  const mediaRecorder = useRef(null); // Holds MediaRecorder instance
-  const ws = useRef(null);            // Holds WebSocket instance
+  // Refs
+  const mediaRecorder = useRef(null); // MediaRecorder instance for audio capture
+  const ws = useRef(null); // WebSocket connection reference
+  const nextIsAudio = useRef(false); // Flag to expect incoming binary audio blob
 
-  // Function to start audio recording and open WebSocket connection
+  // Function to start or stop voice recording
   const startRecording = async () => {
-    // Ask for microphone permission and start audio stream
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const recorder = new MediaRecorder(stream);
-    mediaRecorder.current = recorder;
+    if (recording) {
+      // Stop if already recording
+      mediaRecorder.current?.stop();
+      setRecording(false);
+      return;
+    }
 
-    // Connect to the FastAPI WebSocket backend
-    ws.current = new WebSocket("ws://localhost:8000/ws/audio");
+    try {
+      // Get microphone input stream
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      mediaRecorder.current = recorder;
 
-    const audioChunks = [];
+      const audioChunks = []; // Buffer to hold recorded audio chunks
 
-    // Collect audio data chunks while recording
-    recorder.ondataavailable = (e) => {
-      audioChunks.push(e.data);
-    };
+      // Open WebSocket connection
+      ws.current = new WebSocket("ws://localhost:8000/ws/audio");
 
-    // When recording stops: convert audio to base64 and send over WebSocket
-    recorder.onstop = () => {
-      const blob = new Blob(audioChunks, { type: "audio/wav" });
-      const reader = new FileReader();
+      // On WS connection open, send selected response mode
+      ws.current.onopen = () => {
+        ws.current.send(JSON.stringify({ type: "mode", payload: aiResponseMode }));
+      };
 
-      reader.readAsDataURL(blob);
-      reader.onloadend = () => {
-        const base64 = reader.result;
+      // Handle incoming WebSocket messages (AI replies)
+      ws.current.onmessage = async (event) => {
+        // Server indicates next message is audio
+        if (typeof event.data === "string" && event.data === "__AUDIO__") {
+          nextIsAudio.current = true;
+          return;
+        }
 
-        // Send base64 audio to server
-        ws.current.send(base64);
+        // If next message is binary audio blob
+        if (event.data instanceof Blob && nextIsAudio.current) {
+          const blob = new Blob([event.data], { type: "audio/mpeg" });
+          const audioUrl = URL.createObjectURL(blob);
+          setChat((prev) => [...prev, { sender: "ai", audioUrl }]);
+          nextIsAudio.current = false;
+          return;
+        }
 
-        // Also tell server how we want the AI to respond (text or audio)
-        ws.current.send(
-          JSON.stringify({ type: "mode", payload: aiResponseMode })
-        );
+        // Otherwise treat it as plain text message
+        if (typeof event.data === "string") {
+          setChat((prev) => [...prev, { sender: "ai", text: event.data }]);
+        }
+      };
 
-        // Add user's recorded audio to chat UI
+      // Capture audio chunks while recording
+      recorder.ondataavailable = (e) => {
+        audioChunks.push(e.data);
+      };
+
+      // On recording stop, send audio to backend and store locally
+      recorder.onstop = () => {
+        const blob = new Blob(audioChunks, { type: "audio/wav" });
+        ws.current.send(blob); // Send audio to backend
         const userAudioUrl = URL.createObjectURL(blob);
         setChat((prev) => [...prev, { sender: "user", audioUrl: userAudioUrl }]);
       };
-    };
 
-    recorder.start();
-    setRecording(true);
-
-    // Handle incoming responses from the AI
-    ws.current.onmessage = (event) => {
-      try {
-        const data = event.data;
-
-        // If it's a text response
-        if (typeof data === "string") {
-          setChat((prev) => [...prev, { sender: "ai", text: data }]);
-        } else {
-          // Otherwise it's audio (binary blob)
-          const audioBlob = new Blob([data], { type: "audio/mpeg" });
-          const audioUrl = URL.createObjectURL(audioBlob);
-          setChat((prev) => [...prev, { sender: "ai", audioUrl }]);
-        }
-      } catch (e) {
-        console.error("onmessage error:", e);
-      }
-    };
-
-    // Stop recording after 5 seconds (auto cutoff)
-    setTimeout(() => {
-      recorder.stop();
-      setRecording(false);
-    }, 5000);
-  };
-
-  // Function to send a typed message to the server
-  const sendTextMessage = async () => {
-    if (!inputText.trim()) return;
-
-    // Display user message in chat immediately
-    setChat((prev) => [...prev, { sender: "user", text: inputText }]);
-    const prompt = inputText;
-    setInputText("");
-
-    // Connect to WebSocket and send the typed prompt
-    ws.current = new WebSocket("ws://localhost:8000/ws/audio");
-
-    // Handle text or audio mode
-    if (aiResponseMode === "text") {
-      ws.current.onopen = () => {
-        ws.current.send(JSON.stringify({ type: "text", payload: prompt }));
-      };
-      ws.current.onmessage = (event) => {
-        const response = event.data;
-        setChat((prev) => [...prev, { sender: "ai", text: response }]);
-      };
-    } else {
-      // For audio responses, also send mode info
-      ws.current.onopen = () => {
-        ws.current.send(JSON.stringify({ type: "text", payload: prompt }));
-        ws.current.send(
-          JSON.stringify({ type: "mode", payload: aiResponseMode })
-        );
-      };
-      ws.current.onmessage = (event) => {
-        const audioBlob = new Blob([event.data], { type: "audio/mpeg" });
-        const audioUrl = URL.createObjectURL(audioBlob);
-        setChat((prev) => [...prev, { sender: "ai", audioUrl }]);
-      };
+      recorder.start();
+      setRecording(true); // Update UI state
+    } catch (err) {
+      console.error("Failed to start recording:", err);
     }
   };
 
-  // Auto-scroll chat to bottom when new messages arrive
+  // Function to send text input to the AI backend
+  const sendTextMessage = () => {
+    if (!inputText.trim()) return;
+
+    setChat((prev) => [...prev, { sender: "user", text: inputText }]);
+    const prompt = inputText;
+    setInputText(""); // Clear input box
+
+    // Open a new WebSocket connection
+    ws.current = new WebSocket("ws://localhost:8000/ws/audio");
+
+    ws.current.onopen = () => {
+      ws.current.send(JSON.stringify({ type: "mode", payload: aiResponseMode }));
+      ws.current.send(JSON.stringify({ type: "text", payload: prompt }));
+    };
+
+    // Handle AI's reply (text or audio)
+    ws.current.onmessage = async (event) => {
+      if (typeof event.data === "string" && event.data === "__AUDIO__") {
+        nextIsAudio.current = true;
+        return;
+      }
+
+      if (event.data instanceof Blob && nextIsAudio.current) {
+        const blob = new Blob([event.data], { type: "audio/mpeg" });
+        const audioUrl = URL.createObjectURL(blob);
+        setChat((prev) => [...prev, { sender: "ai", audioUrl }]);
+        nextIsAudio.current = false;
+        return;
+      }
+
+      if (typeof event.data === "string") {
+        setChat((prev) => [...prev, { sender: "ai", text: event.data }]);
+      }
+    };
+  };
+
+  // Auto-scroll chat box to bottom when chat updates
   useEffect(() => {
     const chatArea = document.querySelector(".chat-box");
     if (chatArea) chatArea.scrollTop = chatArea.scrollHeight;
   }, [chat]);
 
+  // Component UI
   return (
     <div className="app-container">
+      {/* Header */}
       <nav className="navbar">
         <span className="navbar-title">NeuraVoice 🔊</span>
       </nav>
 
+      {/* Main Chat + Input Area */}
       <div className="main-content">
+        {/* Chat Display */}
         <div className="chat-box">
           {chat.map((msg, idx) => (
             <div
               key={idx}
               className={`chat-bubble ${msg.sender === "user" ? "user" : "ai"}`}
             >
-              {/* Show audio if audioUrl exists, else show plain text */}
+              {/* Audio or Text output */}
               {msg.audioUrl ? (
                 <audio controls src={msg.audioUrl}></audio>
-              ) : (
+              ) : typeof msg.text === "string" ? (
                 <span>{msg.text}</span>
+              ) : (
+                <span>[Invalid response]</span>
               )}
             </div>
           ))}
         </div>
 
+        {/* Input Controls */}
         <div className="input-area">
-          {/* Text input for manual messages */}
+          {/* Text Input */}
           <input
             type="text"
             value={inputText}
@@ -157,17 +165,16 @@ export default function AudioRecorder() {
             className="text-input"
           />
 
-          {/* Button to send typed message */}
+          {/* Buttons */}
           <button onClick={sendTextMessage} className="record-button">
             Send
           </button>
 
-          {/* Button to start voice recording */}
-          <button onClick={startRecording} disabled={recording} className="record-button">
-            {recording ? "Listening..." : "Start Talking"}
+          <button onClick={startRecording} className="record-button">
+            {recording ? "Stop Talking" : "Start Talking"}
           </button>
 
-          {/* Dropdown to toggle AI response mode */}
+          {/* Response Mode Selector */}
           <select
             className="mode-toggle"
             value={aiResponseMode}
